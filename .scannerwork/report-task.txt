@@ -1,8 +1,0 @@
-organization=rjglabs
-projectKey=rjglabs_ai-nuke-newsfeed
-serverUrl=https://sonarcloud.io
-serverVersion=8.0.0.64696
-branch=main
-dashboardUrl=https://sonarcloud.io/dashboard?id=rjglabs_ai-nuke-newsfeed&branch=main&resolved=false
-ceTaskId=AZedjYxWyuGe3_T21Afr
-ceTaskUrl=https://sonarcloud.io/api/ce/task?id=AZedjYxWyuGe3_T21Afr

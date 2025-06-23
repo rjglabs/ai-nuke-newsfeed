@@ -91,7 +91,7 @@ print(f"📁 Excel output saved to: {os.path.abspath(excel_file)}")
 wb = load_workbook(excel_file)
 ws = wb.active
 
-existing_urls = set(row[2] for row in ws.iter_rows(min_row=2, values_only=True) if row[2])
+existing_urls = {row[2] for row in ws.iter_rows(min_row=2, values_only=True) if row[2]}
 
 def fetch_feed_with_timeout(url, timeout=10):
     headers = {

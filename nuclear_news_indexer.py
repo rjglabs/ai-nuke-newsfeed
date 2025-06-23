@@ -131,7 +131,8 @@ for url in feeds:
         published_str = entry.get("published", None)
         try:
             published_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) if published_str else datetime.now(timezone.utc)
-        except:
+        except (TypeError, ValueError) as e:
+            print(f"⚠️ Failed to parse published date for entry: {entry.title}, error: {e}")
             published_dt = datetime.now(timezone.utc)
 
         if published_dt < one_week_ago:

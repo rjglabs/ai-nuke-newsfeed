@@ -4,6 +4,8 @@ import feedparser, json, uuid, os, csv, requests
 from datetime import datetime, timedelta, timezone
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
@@ -11,17 +13,31 @@ from openpyxl.utils import get_column_letter
 
 load_dotenv()
 
+# Load Key Vault URL from environment variable
+key_vault_url = os.getenv("KEY_VAULT_URL")
+
+# Set up Azure Key Vault client
+credential = DefaultAzureCredential()
+secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+
+# Fetch secrets from Key Vault
+openai_api_key = secret_client.get_secret("AI-OPENAI-KEY").value
+openai_api_base = secret_client.get_secret("AI-OPENAI-ENDPOINT").value
+openai_deployment = secret_client.get_secret("AI-OPENAI-DEPLOYMENT").value
+search_api_key = secret_client.get_secret("AI-SEARCH-PRIMARY-KEY").value
+search_api_endpoint = secret_client.get_secret("AI-SEARCH-ENDPOINT").value
+
 client = AzureOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
+    api_key=openai_api_key,
     api_version="2024-12-01-preview",
-    azure_endpoint=os.getenv("OPENAI_API_BASE")
+    azure_endpoint=openai_api_base
 )
 
-model_name = os.getenv("OPENAI_DEPLOYMENT")
+model_name = openai_deployment
 search_client = SearchClient(
-    endpoint=os.getenv("SEARCH_API_ENDPOINT"),
+    endpoint=search_api_endpoint,
     index_name="news-articles-index",
-    credential=AzureKeyCredential(os.getenv("SEARCH_API_KEY"))
+    credential=AzureKeyCredential(search_api_key)
 )
 
 feeds = [

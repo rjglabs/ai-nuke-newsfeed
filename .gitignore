@@ -1,0 +1,33 @@
+# Ignore Python environment and cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Ignore virtual environment folders
+venv/
+env/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore dotenv environment files
+.env
+.env.*
+
+# Ignore Excel output files
+news_results_*.xlsx
+
+# Ignore log files
+*.log
+upload.log
+
+# Ignore sannerworks folders
+.scannerwork/

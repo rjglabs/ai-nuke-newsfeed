@@ -98,6 +98,25 @@ Repeat for each required secret.
 
 ---
 
+## Output & Logging
+
+- **Excel Output**: All results are saved in the `output/` folder with a timestamped filename (e.g., `output/news_results_YYYYMMDD_HHMMSS.xlsx`).
+- **Logs**: All logs are written to the `logs/` folder and also printed to the console for real-time monitoring.
+
+## Testing
+
+- Unit tests are provided in the `tests/` folder. Run all tests with:
+  ```sh
+  python -m unittest discover tests
+  ```
+
+## Development & Contribution
+
+- All dependencies are listed in `requirements.txt`.
+- Please ensure new code is covered by tests and passes static analysis.
+
+---
+
 ## License
 
 MIT License

@@ -1,3 +1,25 @@
+"""
+nuclear_news_indexer.py
+
+Fetches, filters, summarizes, and indexes nuclear-related news articles from various RSS feeds.
+
+Features:
+- Downloads articles from a curated list of science, technology, and policy RSS feeds
+- Filters articles by nuclear-related keywords
+- Summarizes and translates content using Azure OpenAI
+- Uploads processed articles to Azure Cognitive Search
+- Logs uploads and saves results to an Excel file
+
+Requirements:
+- Azure Key Vault for secret management
+- Azure OpenAI and Azure Cognitive Search resources
+- Python packages: feedparser, requests, openpyxl, azure-identity, azure-keyvault-secrets, azure-search-documents, openai, python-dotenv
+
+Usage:
+- Configure environment variables for Azure resources and Key Vault
+- Run the script to fetch and process news articles from the past week
+"""
+
 # Version 2.8.2: Enhanced HTTP headers to better emulate real browsers
 
 import feedparser, json, uuid, os, csv, requests
@@ -10,8 +32,28 @@ from openai import AzureOpenAI
 from dotenv import load_dotenv
 from openpyxl import Workbook, load_workbook
 from openpyxl.utils import get_column_letter
+import logging
+import sys
+from typing import Optional
 
 load_dotenv()
+
+# Configure logging
+LOG_DIR = os.path.join(os.path.dirname(__file__), 'logs')
+LOG_FILE = os.path.join(LOG_DIR, f'news_indexer_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+os.makedirs(LOG_DIR, exist_ok=True)
+logging.basicConfig(
+    filename=LOG_FILE,
+    filemode='a',
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+# Add console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+logger.addHandler(console_handler)
 
 # Load Key Vault URL from environment variable
 key_vault_url = os.getenv("KEY_VAULT_URL")
@@ -91,25 +133,18 @@ keywords = [
     # Emerging science terms
     "muon", "stellarator", "quark", "superconducting", "fusion ignition", "neutrino", "synchrotron"
 ]
-one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-excel_file = f"news_results_{timestamp}.xlsx"
-headers = ["Title", "Summary", "URL", "Author", "Tags", "PublishedDate", "Source"]
+def fetch_feed_with_timeout(url: str, timeout: int = 10) -> Optional[feedparser.FeedParserDict]:
+    """
+    Fetches and parses an RSS/Atom feed from the given URL with a timeout and browser-like headers.
 
-if not os.path.exists(excel_file):
-    wb = Workbook()
-    ws = wb.active
-    ws.append(headers)
-    wb.save(excel_file)
-print(f"📁 Excel output saved to: {os.path.abspath(excel_file)}")
+    Args:
+        url (str): The URL of the RSS/Atom feed.
+        timeout (int, optional): Timeout in seconds for the HTTP request. Defaults to 10.
 
-wb = load_workbook(excel_file)
-ws = wb.active
-
-existing_urls = {row[2] for row in ws.iter_rows(min_row=2, values_only=True) if row[2]}
-
-def fetch_feed_with_timeout(url, timeout=10):
+    Returns:
+        feedparser.FeedParserDict or None: Parsed feed object, or None if fetch fails.
+    """
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -126,98 +161,156 @@ def fetch_feed_with_timeout(url, timeout=10):
     try:
         resp = requests.get(url, timeout=timeout, headers=headers)
         resp.raise_for_status()
+        logger.info(f"Fetched feed: {url}")
         return feedparser.parse(resp.content)
     except Exception as e:
-        print(f"⚠️ Failed to fetch {url} → {e}")
+        logger.warning(f"Failed to fetch {url} → {e}")
         return None
 
-def matches_keywords(text):
+def matches_keywords(text: str) -> bool:
+    """
+    Checks if the provided text contains any of the defined nuclear-related keywords.
+
+    Args:
+        text (str): The text to search for keywords.
+
+    Returns:
+        bool: True if any keyword is found, False otherwise.
+    """
     text = text.lower()
     return any(k in text for k in keywords)
 
-for url in feeds:
-    print(f"\n📡 Parsing feed: {url}")
+def process_feed(url: str, one_week_ago: datetime, existing_urls: set, ws, keywords: list, client, model_name: str, search_client, logger) -> None:
+    """
+    Process a single RSS feed: fetch, filter, summarize, upload, and log articles.
+    """
+    logger.info(f"Parsing feed: {url}")
     feed = fetch_feed_with_timeout(url)
     if not feed:
-        continue
-
-    print(f"→ Found {len(feed.entries)} entries.")
-
+        return
+    logger.info(f"Found {len(feed.entries)} entries.")
     for entry in feed.entries:
-        published_str = entry.get("published", None)
-        try:
-            published_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) if published_str else datetime.now(timezone.utc)
-        except (TypeError, ValueError) as e:
-            print(f"⚠️ Failed to parse published date for entry: {entry.title}, error: {e}")
-            published_dt = datetime.now(timezone.utc)
+        process_entry(entry, feed, one_week_ago, existing_urls, ws, keywords, client, model_name, search_client, logger)
 
-        if published_dt < one_week_ago:
-            print(f"🕒 Skipping old article: {entry.title}")
-            continue
+def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
+    published_str = entry.get("published", None)
+    try:
+        published_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) if published_str else datetime.now(timezone.utc)
+    except (TypeError, ValueError) as e:
+        logger.warning(f"Failed to parse published date for entry: {entry.title}, error: {e}")
+        published_dt = datetime.now(timezone.utc)
+    if published_dt < one_week_ago:
+        logger.info(f"Skipping old article: {entry.title}")
+        return False
+    return True
 
-        combined_text = entry.title + " " + entry.get("summary", "")
-        if not matches_keywords(combined_text):
-            print(f"⏭️ Skipping (no keyword match): {entry.title}")
-            continue
+def is_entry_duplicate(entry, existing_urls: set, logger) -> bool:
+    if entry.link in existing_urls:
+        logger.info(f"Skipping duplicate URL: {entry.title}")
+        return True
+    return False
 
-        if entry.link in existing_urls:
-            print(f"⏭️ Skipping duplicate URL: {entry.title}")
-            continue
+def get_entry_summary(entry, client, model_name: str, logger) -> str:
+    content = entry.get("summary", "")
+    if not content:
+        logger.warning("No summary available in RSS feed.")
+        return ""
+    try:
+        translation_prompt = f"Translate this to English (if not already), then summarize:\n{content[:4000]}"
+        logger.info(f"Sending translation + summary request to OpenAI for: {entry.title}")
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": translation_prompt}],
+            temperature=0.3
+        )
+        summary = response.choices[0].message.content.strip()
+        logger.info(f"Got summary for: {entry.title}")
+        return summary
+    except Exception as e:
+        logger.error(f"Error summarizing article: {e}")
+        return ""
 
-        print(f"🔍 Matched article: {entry.title}")
+def upload_entry_to_search(doc: dict, search_client, logger) -> bool:
+    try:
+        result = search_client.upload_documents(documents=[doc])
+        logger.info(f"Uploaded: {doc['title']} Status: {result[0].status_code if hasattr(result[0], 'status_code') else 'Success'}")
+        return True
+    except Exception as e:
+        logger.error(f"Error uploading to Azure Search: {e}")
+        return False
 
-        content = entry.get("summary", "")
-        if not content:
-            print("⚠️ No summary available in RSS feed.")
-            continue
+def process_entry(entry, feed, one_week_ago: datetime, existing_urls: set, ws, keywords: list, client, model_name: str, search_client, logger) -> None:
+    """
+    Process a single feed entry: filter, summarize, upload, and log.
+    """
+    if not is_entry_recent(entry, one_week_ago, logger):
+        return
+    combined_text = entry.title + " " + entry.get("summary", "")
+    if not matches_keywords(combined_text):
+        logger.info(f"Skipping (no keyword match): {entry.title}")
+        return
+    if is_entry_duplicate(entry, existing_urls, logger):
+        return
+    summary = get_entry_summary(entry, client, model_name, logger)
+    if not summary:
+        return
+    content = entry.get("summary", "")
+    published_str = entry.get("published", None)
+    try:
+        published_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) if published_str else datetime.now(timezone.utc)
+    except (TypeError, ValueError):
+        published_dt = datetime.now(timezone.utc)
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": entry.title,
+        "summary": summary,
+        "url": entry.link,
+        "author": entry.get("author", "Unknown"),
+        "tags": [k for k in keywords if k in content.lower()],
+        "publishedDate": published_dt.isoformat(),
+        "source": feed.feed.get("title", "RSS Source"),
+        "content": content[:8000]
+    }
+    if not upload_entry_to_search(doc, search_client, logger):
+        return
+    ws.append([
+        doc["title"],
+        summary,
+        doc["url"],
+        doc["author"],
+        ", ".join(doc["tags"]),
+        doc["publishedDate"],
+        doc["source"]
+    ])
+    existing_urls.add(doc["url"])
+    with open("upload.log", "a", encoding="utf-8") as logf:
+        logf.write(json.dumps(doc, indent=2) + "\n\n")
 
-        try:
-            translation_prompt = f"Translate this to English (if not already), then summarize:\n{content[:4000]}"
-            print("💬 Sending translation + summary request to OpenAI...")
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": translation_prompt}],
-                temperature=0.3
-            )
-            summary = response.choices[0].message.content.strip()
-            print(f"✅ Got summary (preview): {summary[:200]}...")
-        except Exception as e:
-            print(f"❌ Error summarizing article: {e}")
-            continue
+def main() -> None:
+    """
+    Main execution function for fetching, filtering, summarizing, and indexing nuclear-related news articles.
+    Handles feed parsing, keyword filtering, summarization, Azure Search upload, and Excel logging.
+    """
+    output_dir = os.path.join(os.path.dirname(__file__), 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    excel_file = os.path.join(output_dir, f"news_results_{timestamp}.xlsx")
+    headers = ["Title", "Summary", "URL", "Author", "Tags", "PublishedDate", "Source"]
+    if not os.path.exists(excel_file):
+        wb = Workbook()
+        ws = wb.active
+        ws.append(headers)
+        wb.save(excel_file)
+    logger.info(f"Excel output saved to: {os.path.abspath(excel_file)}")
+    wb = load_workbook(excel_file)
+    ws = wb.active
+    existing_urls = {row[2] for row in ws.iter_rows(min_row=2, values_only=True) if row[2]}
+    one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    for url in feeds:
+        process_feed(url, one_week_ago, existing_urls, ws, keywords, client, model_name, search_client, logger)
+    wb.save(excel_file)
+    logger.info("Job complete.")
+    logger.info(f"Excel output saved to: {os.path.abspath(excel_file)}")
 
-        doc = {
-            "id": str(uuid.uuid4()),
-            "title": entry.title,
-            "summary": summary,
-            "url": entry.link,
-            "author": entry.get("author", "Unknown"),
-            "tags": [k for k in keywords if k in content.lower()],
-            "publishedDate": published_dt.isoformat(),
-            "source": feed.feed.get("title", "RSS Source"),
-            "content": content[:8000]
-        }
-
-        try:
-            result = search_client.upload_documents(documents=[doc])
-            print("📤 Uploaded:", doc["title"], "Status:", result[0].status_code if hasattr(result[0], 'status_code') else "Success")
-        except Exception as e:
-            print(f"❌ Error uploading to Azure Search: {e}")
-            continue
-
-        ws.append([
-            doc["title"],
-            summary,
-            doc["url"],
-            doc["author"],
-            ", ".join(doc["tags"]),
-            doc["publishedDate"],
-            doc["source"]
-        ])
-        existing_urls.add(doc["url"])
-
-        with open("upload.log", "a", encoding="utf-8") as logf:
-            logf.write(json.dumps(doc, indent=2) + "\n\n")
-
-wb.save(excel_file)
-print("✅ Job complete.")
-print(f"📁 Excel output saved to: {os.path.abspath(excel_file)}")
+if __name__ == "__main__":
+    main()

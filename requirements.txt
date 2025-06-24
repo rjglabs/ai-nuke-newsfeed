@@ -1,0 +1,8 @@
+feedparser
+requests
+openpyxl
+azure-identity
+azure-keyvault-secrets
+azure-search-documents
+openai
+python-dotenv

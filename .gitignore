@@ -31,3 +31,9 @@ upload.log
 
 # Ignore sannerworks folders
 .scannerwork/
+
+# Ignore logs and output folders
+logs/
+output/
+# Ignore Excel output files in output folder
+output/*.xlsx

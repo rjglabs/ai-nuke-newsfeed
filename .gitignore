@@ -31,7 +31,8 @@ upload.log
 
 # Ignore scannerworks folders
 .scannerwork/
-
+.sonar/
+./sonar/*
 
 # Ignore logs and output folders
 logs/

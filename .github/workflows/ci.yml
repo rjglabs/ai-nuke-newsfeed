@@ -36,6 +36,14 @@ jobs:
       - name: Set dummy Key Vault URL for tests
         run: echo "KEY_VAULT_URL=https://dummy.vault.azure.net/" >> $GITHUB_ENV
 
+      - name: Set dummy Azure secrets for tests
+        run: |
+          echo "AI-OPENAI-KEY=dummy-openai-key" >> $GITHUB_ENV
+          echo "AI-OPENAI-ENDPOINT=https://dummy-openai-endpoint.openai.azure.com/" >> $GITHUB_ENV
+          echo "AI-OPENAI-DEPLOYMENT=dummy-deployment" >> $GITHUB_ENV
+          echo "AI-SEARCH-PRIMARY-KEY=dummy-search-key" >> $GITHUB_ENV
+          echo "AI-SEARCH-ENDPOINT=https://dummy-search-endpoint.search.windows.net/" >> $GITHUB_ENV
+
       - name: Run unit tests
         run: |
           if [ -d tests ]; then

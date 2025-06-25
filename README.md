@@ -16,11 +16,23 @@ A Python automation tool that scans a curated list of international and technica
 
 ---
 
+## Dependency Security
+
+- All production and development dependencies are regularly reviewed for security vulnerabilities.
+- Vulnerable packages are pinned to secure versions as soon as fixes are available.
+- Notable pins:
+  - `azure-identity>=1.16.1` (security fix)
+  - `zipp>=3.19.1` (security fix)
+  - `black>=24.3.0` (security fix, dev only)
+- See `requirements.txt` and `requirements-dev.txt` for current versions.
+
+---
+
 ## Code Quality & Formatting Tools
 
 This project uses the following tools to ensure code quality and consistency:
 
-- **Black**: Python code formatter. To maintain compatibility with flake8's strict line length, always run Black with `--line-length 79`:
+- **Black**: Python code formatter. Pinned to `>=24.3.0` in `requirements-dev.txt` for security. To maintain compatibility with flake8's strict line length, always run Black with `--line-length 79`:
   ```sh
   black --line-length 79 nuclear_news_indexer.py
   ```
@@ -36,6 +48,7 @@ This project uses the following tools to ensure code quality and consistency:
   ```sh
   isort nuclear_news_indexer.py
   ```
+- **zipp**: Pinned to `>=3.19.1` in both `requirements.txt` and `requirements-dev.txt` for security.
 
 > **Note:** Black's default line length is 88, which will cause conflicts with flake8's E501. Always use `--line-length 79` with Black for this project.
 
@@ -51,12 +64,23 @@ This project leverages agentic AI coding support via GitHub Copilot and related 
 
 ---
 
-## Continuous Integration (CI) & SonarCloud
+## Continuous Integration (CI), SonarCloud & Snyk
 
 This project uses GitHub Actions for continuous integration. Every push and pull request to the `main` branch automatically triggers a workflow that:
 - Checks code formatting and style (isort, black, flake8)
 - Runs unit tests
 - Runs a SonarCloud static analysis scan for code quality and security
+- **Runs Snyk security scans on both `requirements.txt` and `requirements-dev.txt` to detect vulnerabilities in all dependencies**
+
+### Snyk Security Scanning
+
+Snyk is integrated into the CI pipeline to automatically check for vulnerabilities in both production and development dependencies:
+- The workflow uses the official Snyk GitHub Action to scan `requirements.txt` and `requirements-dev.txt` on every CI run.
+- The Snyk token is provided via the `SNYK_TOKEN` GitHub Actions secret. To set it up, run:
+  ```sh
+  gh secret set SNYK_TOKEN --repo rjglabs/ai-nuke-newsfeed --body "YOUR_TOKEN_HERE"
+  ```
+- If vulnerabilities are found, the workflow will fail and details will be shown in the Actions log.
 
 The SonarCloud scan is triggered by the GitHub Actions workflow and results are visible on the SonarCloud dashboard for this project.
 
@@ -98,10 +122,11 @@ Python packages (`pip install`):
 - `azure-core`
 - `azure-search-documents`
 - `openai`
-- `azure-identity`
+- `azure-identity>=1.16.1`
 - `azure-keyvault-secrets`
+- `zipp>=3.19.1`
 
-# pip install feedparser requests openpyxl python-dotenv azure-core azure-search-documents openai azure-identity azure-keyvault-secrets
+# pip install feedparser requests openpyxl python-dotenv azure-core azure-search-documents openai azure-identity>=1.16.1 azure-keyvault-secrets zipp>=3.19.1
 
 ---
 

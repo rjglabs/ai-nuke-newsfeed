@@ -52,6 +52,20 @@ jobs:
           coverage run -m unittest discover tests
           coverage xml
 
+      - name: Run Snyk to check for vulnerabilities (requirements.txt)
+        uses: snyk/actions/python@v1
+        with:
+          args: --file=requirements.txt --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Run Snyk to check for vulnerabilities (requirements-dev.txt)
+        uses: snyk/actions/python@v1
+        with:
+          args: --file=requirements-dev.txt --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:

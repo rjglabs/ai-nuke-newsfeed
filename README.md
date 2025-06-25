@@ -125,8 +125,12 @@ Python packages (`pip install`):
 - `azure-identity>=1.16.1`
 - `azure-keyvault-secrets`
 - `zipp>=3.19.1`
+- `black>=24.3.0`  # dev tool, included for unified security scanning
+- `flake8`          # dev tool, included for unified security scanning
+- `isort`           # dev tool, included for unified security scanning
+- `coverage`        # dev tool, included for unified security scanning
 
-# pip install feedparser requests openpyxl python-dotenv azure-core azure-search-documents openai azure-identity>=1.16.1 azure-keyvault-secrets zipp>=3.19.1
+# pip install feedparser requests openpyxl python-dotenv azure-core azure-search-documents openai azure-identity>=1.16.1 azure-keyvault-secrets zipp>=3.19.1 black>=24.3.0 flake8 isort coverage
 
 ---
 

@@ -10,3 +10,7 @@ h11>=0.16.0
 zipp>=3.19.1
 anyio>=4.4.0
 urllib3>=2.5.0
+black>=24.3.0
+flake8
+isort
+coverage

@@ -59,13 +59,6 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk to check for vulnerabilities (requirements-dev.txt)
-        uses: snyk/actions/python@master
-        with:
-          args: --file=requirements-dev.txt
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         with:

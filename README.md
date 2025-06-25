@@ -178,6 +178,33 @@ Repeat for each required secret.
   python -m unittest discover tests
   ```
 
+## Code Coverage
+
+To measure and report code coverage (and integrate with SonarCloud):
+
+1. Install the required tools (in your virtual environment):
+   ```sh
+   pip install coverage pytest
+   ```
+2. Run your tests with coverage:
+   ```sh
+   coverage run -m pytest
+   ```
+3. See a coverage summary in the terminal:
+   ```sh
+   coverage report
+   ```
+4. (Optional) Generate an HTML report:
+   ```sh
+   coverage html
+   # Open htmlcov/index.html in your browser
+   ```
+5. Generate a coverage XML report for SonarCloud:
+   ```sh
+   coverage xml
+   ```
+   This creates `coverage.xml` in your project root. The CI workflow and SonarCloud are configured to pick this up automatically.
+
 ## Development & Contribution
 
 - All dependencies are listed in `requirements.txt`.

@@ -51,6 +51,27 @@ This project leverages agentic AI coding support via GitHub Copilot and related 
 
 ---
 
+## Commit Signing & GPG Public Key
+
+All commits and tags in this repository are signed with a GPG key for authenticity and integrity. The public key is provided in the file `GPG-KEY.txt` at the root of this repository.
+
+**To import the public key and verify signatures:**
+
+1. Import the key:
+   ```sh
+   gpg --import GPG-KEY.txt
+   ```
+2. After importing, you can verify signed commits and tags using GitHub or the command line:
+   ```sh
+   git log --show-signature
+   git show --show-signature <commit-hash>
+   git tag -v <tagname>
+   ```
+
+> **Note:** On GitHub, a "Verified" badge will appear next to signed commits and tags if the key is also added to the committer's GitHub account.
+
+---
+
 ## Requirements
 
 - **Python 3.8+**

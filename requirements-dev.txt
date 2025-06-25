@@ -1,3 +1,4 @@
-black
+black>=24.3.0
 flake8
 isort
+zipp>=3.19.1

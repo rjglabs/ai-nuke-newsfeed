@@ -1,8 +1,12 @@
 feedparser
-requests
+requests>=2.32.4
 openpyxl
-azure-identity
+azure-identity>=1.16.1
 azure-keyvault-secrets
 azure-search-documents
 openai
 python-dotenv
+h11>=0.16.0
+zipp>=3.19.1
+anyio>=4.4.0
+urllib3>=2.5.0

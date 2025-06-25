@@ -51,6 +51,17 @@ This project leverages agentic AI coding support via GitHub Copilot and related 
 
 ---
 
+## Continuous Integration (CI) & SonarCloud
+
+This project uses GitHub Actions for continuous integration. Every push and pull request to the `main` branch automatically triggers a workflow that:
+- Checks code formatting and style (isort, black, flake8)
+- Runs unit tests
+- Runs a SonarCloud static analysis scan for code quality and security
+
+The SonarCloud scan is triggered by the GitHub Actions workflow and results are visible on the SonarCloud dashboard for this project.
+
+---
+
 ## Commit Signing & GPG Public Key
 
 All commits and tags in this repository are signed with a GPG key for authenticity and integrity. The public key is provided in the file `GPG-KEY.txt` at the root of this repository.

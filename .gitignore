@@ -29,8 +29,9 @@ news_results_*.xlsx
 *.log
 upload.log
 
-# Ignore sannerworks folders
+# Ignore scannerworks folders
 .scannerwork/
+sonar-project.properties
 
 # Ignore logs and output folders
 logs/

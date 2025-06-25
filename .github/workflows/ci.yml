@@ -33,6 +33,9 @@ jobs:
       - name: Run flake8
         run: flake8 nuclear_news_indexer.py
 
+      - name: Set dummy Key Vault URL for tests
+        run: echo "KEY_VAULT_URL=https://dummy.vault.azure.net/" >> $GITHUB_ENV
+
       - name: Run unit tests
         run: |
           if [ -d tests ]; then

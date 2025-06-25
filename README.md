@@ -184,6 +184,25 @@ Repeat for each required secret.
 
 ---
 
+## CI Test Quick Fix for Azure Key Vault
+
+If you see errors in GitHub Actions or CI like:
+
+```
+ValueError: vault_url must be the URL of an Azure Key Vault
+```
+
+add this step to your GitHub Actions workflow before running tests to set a dummy Key Vault URL:
+
+```yaml
+- name: Set dummy Key Vault URL for tests
+  run: echo "KEY_VAULT_URL=https://dummy.vault.azure.net/" >> $GITHUB_ENV
+```
+
+This allows your tests to import the code without requiring a real Azure Key Vault during CI. For best practice, refactor your code so that Azure clients are only created when needed, not at import time.
+
+---
+
 ## License
 
 MIT License

@@ -31,7 +31,7 @@ upload.log
 
 # Ignore scannerworks folders
 .scannerwork/
-sonar-project.properties
+
 
 # Ignore logs and output folders
 logs/

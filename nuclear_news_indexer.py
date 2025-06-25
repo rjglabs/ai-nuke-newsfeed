@@ -66,33 +66,6 @@ console_handler.setFormatter(
 )
 logger.addHandler(console_handler)
 
-# Load Key Vault URL from environment variable
-key_vault_url = os.getenv("KEY_VAULT_URL")
-
-# Set up Azure Key Vault client
-credential = DefaultAzureCredential()
-secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
-
-# Fetch secrets from Key Vault
-openai_api_key = secret_client.get_secret("AI-OPENAI-KEY").value
-openai_api_base = secret_client.get_secret("AI-OPENAI-ENDPOINT").value
-openai_deployment = secret_client.get_secret("AI-OPENAI-DEPLOYMENT").value
-search_api_key = secret_client.get_secret("AI-SEARCH-PRIMARY-KEY").value
-search_api_endpoint = secret_client.get_secret("AI-SEARCH-ENDPOINT").value
-
-client = AzureOpenAI(
-    api_key=openai_api_key,
-    api_version="2024-12-01-preview",
-    azure_endpoint=openai_api_base,
-)
-
-model_name = openai_deployment
-search_client = SearchClient(
-    endpoint=search_api_endpoint,
-    index_name="news-articles-index",
-    credential=AzureKeyCredential(search_api_key),
-)
-
 feeds = [
     # News & Science
     "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
@@ -407,6 +380,36 @@ def process_entry(
         logf.write(json.dumps(doc, indent=2) + "\n\n")
 
 
+def get_azure_clients_and_secrets():
+    """
+    Lazily fetch Azure secrets and instantiate clients. Call only inside main().
+    Returns:
+        client (AzureOpenAI): OpenAI client
+        model_name (str): OpenAI deployment name
+        search_client (SearchClient): Azure Search client
+    """
+    key_vault_url = os.getenv("KEY_VAULT_URL")
+    credential = DefaultAzureCredential()
+    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+    openai_api_key = secret_client.get_secret("AI-OPENAI-KEY").value
+    openai_api_base = secret_client.get_secret("AI-OPENAI-ENDPOINT").value
+    openai_deployment = secret_client.get_secret("AI-OPENAI-DEPLOYMENT").value
+    search_api_key = secret_client.get_secret("AI-SEARCH-PRIMARY-KEY").value
+    search_api_endpoint = secret_client.get_secret("AI-SEARCH-ENDPOINT").value
+    client = AzureOpenAI(
+        api_key=openai_api_key,
+        api_version="2024-12-01-preview",
+        azure_endpoint=openai_api_base,
+    )
+    model_name = openai_deployment
+    search_client = SearchClient(
+        endpoint=search_api_endpoint,
+        index_name="news-articles-index",
+        credential=AzureKeyCredential(search_api_key),
+    )
+    return client, model_name, search_client
+
+
 def main() -> None:
     """
     Main execution function for fetching, filtering, summarizing, and indexing
@@ -414,6 +417,7 @@ def main() -> None:
     Handles feed parsing, keyword filtering, summarization, Azure Search
     upload, and Excel logging.
     """
+    client, model_name, search_client = get_azure_clients_and_secrets()
     output_dir = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

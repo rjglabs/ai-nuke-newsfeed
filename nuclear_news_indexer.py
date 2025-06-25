@@ -1,10 +1,12 @@
 """
 nuclear_news_indexer.py
 
-Fetches, filters, summarizes, and indexes nuclear-related news articles from various RSS feeds.
+Fetches, filters, summarizes, and indexes nuclear-related news articles from
+various RSS feeds.
 
 Features:
-- Downloads articles from a curated list of science, technology, and policy RSS feeds
+- Downloads articles from a curated list of science, technology, and policy RSS
+  feeds
 - Filters articles by nuclear-related keywords
 - Summarizes and translates content using Azure OpenAI
 - Uploads processed articles to Azure Cognitive Search
@@ -23,22 +25,23 @@ Usage:
 
 # Version 2.8.2: Enhanced HTTP headers to better emulate real browsers
 
-import feedparser
 import json
-import uuid
+import logging
 import os
-import requests
+import sys
+import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+import feedparser
+import requests
 from azure.core.credentials import AzureKeyCredential
-from azure.search.documents import SearchClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from openai import AzureOpenAI
+from azure.search.documents import SearchClient
 from dotenv import load_dotenv
+from openai import AzureOpenAI
 from openpyxl import Workbook, load_workbook
-import logging
-import sys
-from typing import Optional
 
 load_dotenv()
 
@@ -182,14 +185,17 @@ def fetch_feed_with_timeout(
     url: str, timeout: int = 10
 ) -> Optional[feedparser.FeedParserDict]:
     """
-    Fetches and parses an RSS/Atom feed from the given URL with a timeout and browser-like headers.
+    Fetches and parses an RSS/Atom feed from the given URL with a timeout and
+    browser-like headers.
 
     Args:
         url (str): The URL of the RSS/Atom feed.
-        timeout (int, optional): Timeout in seconds for the HTTP request. Defaults to 10.
+        timeout (int, optional): Timeout in seconds for the HTTP request.
+            Defaults to 10.
 
     Returns:
-        feedparser.FeedParserDict or None: Parsed feed object, or None if fetch fails.
+        feedparser.FeedParserDict or None: Parsed feed object, or None if
+            fetch fails.
     """
     headers = {
         "User-Agent": (
@@ -208,20 +214,19 @@ def fetch_feed_with_timeout(
         "DNT": "1",
     }
     try:
-        resp = requests.get(
-            url, timeout=timeout, headers=headers
-        )
+        resp = requests.get(url, timeout=timeout, headers=headers)
         resp.raise_for_status()
         logger.info(f"Fetched feed: {url}")
         return feedparser.parse(resp.content)
     except Exception as e:
-        logger.warning(f"Failed to fetch {url} → {e}")
+        logger.warning(f"Failed to fetch {url}  ̲ {e}")
         return None
 
 
 def matches_keywords(text: str) -> bool:
     """
-    Checks if the provided text contains any of the defined nuclear-related keywords.
+    Checks if the provided text contains any of the defined nuclear-related
+    keywords.
 
     Args:
         text (str): The text to search for keywords.
@@ -230,9 +235,7 @@ def matches_keywords(text: str) -> bool:
         bool: True if any keyword is found, False otherwise.
     """
     text = text.lower()
-    return any(
-        k in text for k in keywords
-    )
+    return any(k in text for k in keywords)
 
 
 def process_feed(
@@ -247,17 +250,14 @@ def process_feed(
     logger,
 ) -> None:
     """
-    Process a single RSS feed: fetch, filter, summarize, upload, and log articles.
+    Process a single RSS feed: fetch, filter, summarize, upload, and log
+    articles.
     """
-    logger.info(
-        f"Parsing feed: {url}"
-    )
+    logger.info(f"Parsing feed: {url}")
     feed = fetch_feed_with_timeout(url)
     if not feed:
         return
-    logger.info(
-        f"Found {len(feed.entries)} entries."
-    )
+    logger.info(f"Found {len(feed.entries)} entries.")
     for entry in feed.entries:
         process_entry(
             entry,
@@ -283,22 +283,19 @@ def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
         )
     except (TypeError, ValueError) as e:
         logger.warning(
-            f"Failed to parse published date for entry: {entry.title}, error: {e}"
+            f"Failed to parse published date for entry: {entry.title}, "
+            f"error: {e}"
         )
         published_dt = datetime.now(timezone.utc)
     if published_dt < one_week_ago:
-        logger.info(
-            f"Skipping old article: {entry.title}"
-        )
+        logger.info(f"Skipping old article: {entry.title}")
         return False
     return True
 
 
 def is_entry_duplicate(entry, existing_urls: set, logger) -> bool:
     if entry.link in existing_urls:
-        logger.info(
-            f"Skipping duplicate URL: {entry.title}"
-        )
+        logger.info(f"Skipping duplicate URL: {entry.title}")
         return True
     return False
 
@@ -306,14 +303,16 @@ def is_entry_duplicate(entry, existing_urls: set, logger) -> bool:
 def get_entry_summary(entry, client, model_name: str, logger) -> str:
     content = entry.get("summary", "")
     if not content:
-        logger.warning(
-            "No summary available in RSS feed."
-        )
+        logger.warning("No summary available in RSS feed.")
         return ""
     try:
-        translation_prompt = f"Translate this to English (if not already), then summarize:\n{content[:4000]}"
+        translation_prompt = (
+            "Translate this to English (if not already), then summarize:\n"
+            f"{content[:4000]}"
+        )
         logger.info(
-            f"Sending translation + summary request to OpenAI for: {entry.title}"
+            "Sending translation + summary request to OpenAI for: %s",
+            entry.title,
         )
         response = client.chat.completions.create(
             model=model_name,
@@ -321,28 +320,25 @@ def get_entry_summary(entry, client, model_name: str, logger) -> str:
             temperature=0.3,
         )
         summary = response.choices[0].message.content.strip()
-        logger.info(
-            f"Got summary for: {entry.title}"
-        )
+        logger.info(f"Got summary for: {entry.title}")
         return summary
     except Exception as e:
-        logger.error(
-            f"Error summarizing article: {e}"
-        )
+        logger.error(f"Error summarizing article: {e}")
         return ""
 
 
 def upload_entry_to_search(doc: dict, search_client, logger) -> bool:
     try:
         result = search_client.upload_documents(documents=[doc])
-        logger.info(
-            f"Uploaded: {doc['title']} Status: {result[0].status_code if hasattr(result[0], 'status_code') else 'Success'}"
+        status = (
+            result[0].status_code
+            if hasattr(result[0], "status_code")
+            else "Success"
         )
+        logger.info("Uploaded: %s Status: %s", doc["title"], status)
         return True
     except Exception as e:
-        logger.error(
-            f"Error uploading to Azure Search: {e}"
-        )
+        logger.error(f"Error uploading to Azure Search: {e}")
         return False
 
 
@@ -365,9 +361,7 @@ def process_entry(
         return
     combined_text = entry.title + " " + entry.get("summary", "")
     if not matches_keywords(combined_text):
-        logger.info(
-            f"Skipping (no keyword match): {entry.title}"
-        )
+        logger.info(f"Skipping (no keyword match): {entry.title}")
         return
     if is_entry_duplicate(entry, existing_urls, logger):
         return
@@ -390,9 +384,7 @@ def process_entry(
         "summary": summary,
         "url": entry.link,
         "author": entry.get("author", "Unknown"),
-        "tags": [
-            k for k in keywords if k in content.lower()
-        ],
+        "tags": [k for k in keywords if k in content.lower()],
         "publishedDate": published_dt.isoformat(),
         "source": feed.feed.get("title", "RSS Source"),
         "content": content[:8000],
@@ -417,14 +409,24 @@ def process_entry(
 
 def main() -> None:
     """
-    Main execution function for fetching, filtering, summarizing, and indexing nuclear-related news articles.
-    Handles feed parsing, keyword filtering, summarization, Azure Search upload, and Excel logging.
+    Main execution function for fetching, filtering, summarizing, and indexing
+    nuclear-related news articles.
+    Handles feed parsing, keyword filtering, summarization, Azure Search
+    upload, and Excel logging.
     """
     output_dir = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     excel_file = os.path.join(output_dir, f"news_results_{timestamp}.xlsx")
-    headers = ["Title", "Summary", "URL", "Author", "Tags", "PublishedDate", "Source"]
+    headers = [
+        "Title",
+        "Summary",
+        "URL",
+        "Author",
+        "Tags",
+        "PublishedDate",
+        "Source",
+    ]
     if not os.path.exists(excel_file):
         wb = Workbook()
         ws = wb.active
@@ -452,7 +454,8 @@ def main() -> None:
     wb.save(excel_file)
     logger.info("Job complete.")
     logger.info(
-        f"Excel output saved to: {os.path.abspath(excel_file)}"
+        "Excel output saved to: %s",
+        os.path.abspath(excel_file),
     )
 
 

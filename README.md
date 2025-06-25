@@ -16,6 +16,41 @@ A Python automation tool that scans a curated list of international and technica
 
 ---
 
+## Code Quality & Formatting Tools
+
+This project uses the following tools to ensure code quality and consistency:
+
+- **Black**: Python code formatter. To maintain compatibility with flake8's strict line length, always run Black with `--line-length 79`:
+  ```sh
+  black --line-length 79 nuclear_news_indexer.py
+  ```
+  You can check for changes without modifying files using:
+  ```sh
+  black --diff --line-length 79 nuclear_news_indexer.py
+  ```
+- **flake8**: Enforces PEP8 compliance, including a strict 79-character line limit (E501). Run:
+  ```sh
+  flake8 nuclear_news_indexer.py
+  ```
+- **isort**: Automatically sorts and groups imports. Run:
+  ```sh
+  isort nuclear_news_indexer.py
+  ```
+
+> **Note:** Black's default line length is 88, which will cause conflicts with flake8's E501. Always use `--line-length 79` with Black for this project.
+
+---
+
+## AI Assistance
+
+This project leverages agentic AI coding support via GitHub Copilot and related tools for code review, refactoring, and automation. AI assistance is used to:
+- Refactor and modularize code
+- Enforce code style and best practices
+- Generate and improve documentation
+- Accelerate development and testing
+
+---
+
 ## Requirements
 
 - **Python 3.8+**

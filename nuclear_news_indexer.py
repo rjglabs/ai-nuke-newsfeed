@@ -269,15 +269,14 @@ def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
             published_dt = datetime.now(timezone.utc)
     except (TypeError, ValueError, AttributeError) as e:
         logger.warning(
-            "Failed to parse published date for entry: %s, error: %s",
-            getattr(entry, "title", entry.get("title", "")),
-            e,
+            "Failed to parse published date for entry: %s, "
+            "error: %s" % (getattr(entry, "title", entry.get("title", "")), e)
         )
         published_dt = datetime.now(timezone.utc)
     if published_dt < one_week_ago:
         logger.info(
-            "Skipping old article: %s",
-            getattr(entry, "title", entry.get("title", "")),
+            "Skipping old article: %s"
+            % getattr(entry, "title", entry.get("title", ""))
         )
         return False
     return True

@@ -382,7 +382,8 @@ def process_entry(
 
 def get_azure_clients_and_secrets():
     """
-    Lazily fetch Azure secrets and instantiate clients. Call only inside main().
+    Lazily fetch Azure secrets and instantiate clients.
+    Call only inside main().
     Returns:
         client (AzureOpenAI): OpenAI client
         model_name (str): OpenAI deployment name
@@ -390,7 +391,9 @@ def get_azure_clients_and_secrets():
     """
     key_vault_url = os.getenv("KEY_VAULT_URL")
     credential = DefaultAzureCredential()
-    secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+    secret_client = SecretClient(
+        vault_url=key_vault_url, credential=credential
+    )
     openai_api_key = secret_client.get_secret("AI-OPENAI-KEY").value
     openai_api_base = secret_client.get_secret("AI-OPENAI-ENDPOINT").value
     openai_deployment = secret_client.get_secret("AI-OPENAI-DEPLOYMENT").value

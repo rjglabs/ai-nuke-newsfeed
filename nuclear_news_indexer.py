@@ -95,7 +95,7 @@ feeds = [
     "https://nuclear-news.net/feed/",
     "https://neutronbytes.com/feed/",
     "https://www.iaea.org/rss/news.xml",
-    "http://thebulletin.org/search-feed",
+    "https://thebulletin.org/search-feed",
     "https://carnegieendowment.org/feed/proliferation-news",
 ]
 

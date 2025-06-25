@@ -247,21 +247,28 @@ def process_feed(
 
 
 def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
-    published_str = entry.get("published", None)
+    published_str = entry.get("published", None) if isinstance(entry, dict) else getattr(entry, "published", None)
     try:
-        published_dt = (
-            datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-            if published_str
-            else datetime.now(timezone.utc)
-        )
-    except (TypeError, ValueError) as e:
+        # Support both dict and object (feedparser) entry types
+        if published_str:
+            if isinstance(entry, dict):
+                published_parsed = entry.get("published_parsed")
+            else:
+                published_parsed = getattr(entry, "published_parsed", None)
+            if published_parsed:
+                published_dt = datetime(*published_parsed[:6], tzinfo=timezone.utc)
+            else:
+                published_dt = datetime.now(timezone.utc)
+        else:
+            published_dt = datetime.now(timezone.utc)
+    except (TypeError, ValueError, AttributeError) as e:
         logger.warning(
-            f"Failed to parse published date for entry: {entry.title}, "
+            f"Failed to parse published date for entry: {getattr(entry, 'title', entry.get('title', ''))}, "
             f"error: {e}"
         )
         published_dt = datetime.now(timezone.utc)
     if published_dt < one_week_ago:
-        logger.info(f"Skipping old article: {entry.title}")
+        logger.info(f"Skipping old article: {getattr(entry, 'title', entry.get('title', ''))}")
         return False
     return True
 

@@ -125,6 +125,7 @@ All other secrets (OpenAI keys, endpoints, deployment names, and Azure Search cr
 
 ---
 
+
 ## Professional Best Practices
 
 - **Enterprise-Grade Security**: All sensitive credentials are managed via Azure Key Vault, never stored in code or local files.

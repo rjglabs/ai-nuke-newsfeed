@@ -44,11 +44,13 @@ jobs:
           echo "AI-SEARCH-PRIMARY-KEY=dummy-search-key" >> $GITHUB_ENV
           echo "AI-SEARCH-ENDPOINT=https://dummy-search-endpoint.search.windows.net/" >> $GITHUB_ENV
 
-      - name: Run unit tests
+      - name: Install coverage
+        run: pip install coverage
+
+      - name: Run tests with coverage
         run: |
-          if [ -d tests ]; then
-            python -m unittest discover tests
-          fi
+          coverage run -m unittest discover tests
+          coverage xml
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2

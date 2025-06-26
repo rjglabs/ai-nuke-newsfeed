@@ -49,6 +49,10 @@ jobs:
       - name: Run flake8
         run: poetry run flake8 nuclear_news_indexer.py
 
+      - name: Run mypy (type checking)
+        run: poetry run mypy nuclear_news_indexer.py
+        # Mypy config disables union-attr error code for openpyxl compatibility
+
       - name: Set dummy Key Vault URL for tests
         run: echo "KEY_VAULT_URL=https://dummy.vault.azure.net/" >> $GITHUB_ENV
 
@@ -81,3 +85,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: rjglabs_ai-nuke-newsfeed
           SONAR_ORGANIZATION: rjglabs
+
+      - name: Run Bandit (security static analysis)
+        run: poetry run bandit -r nuclear_news_indexer.py --skip B101,B404,B603
+        continue-on-error: true

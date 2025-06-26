@@ -31,7 +31,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import feedparser
 import requests
@@ -42,6 +42,7 @@ from azure.search.documents import SearchClient
 from dotenv import load_dotenv
 from openai import AzureOpenAI
 from openpyxl import Workbook, load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
 load_dotenv()
 
@@ -253,20 +254,32 @@ def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
         else getattr(entry, "published", None)
     )
     try:
-        # Support both dict and object (feedparser) entry types
         if published_str:
             if isinstance(entry, dict):
                 published_parsed = entry.get("published_parsed")
             else:
                 published_parsed = getattr(entry, "published_parsed", None)
             if published_parsed:
-                published_dt = datetime(
-                    *published_parsed[:6], tzinfo=timezone.utc
-                )
+                if isinstance(published_parsed, datetime):
+                    published_dt = published_parsed
+                elif isinstance(published_parsed, tuple):
+                    if len(published_parsed) == 6:
+                        published_dt = datetime(
+                            *published_parsed, tzinfo=timezone.utc
+                        )
+                    elif len(published_parsed) > 6:
+                        published_dt = datetime(*published_parsed[:6])
+                    else:
+                        published_dt = datetime.now(timezone.utc)
+                else:
+                    published_dt = datetime.now(timezone.utc)
             else:
                 published_dt = datetime.now(timezone.utc)
         else:
             published_dt = datetime.now(timezone.utc)
+        # Ensure published_dt is always timezone-aware (UTC)
+        if published_dt.tzinfo is None or published_dt.tzinfo.utcoffset(published_dt) is None:
+            published_dt = published_dt.replace(tzinfo=timezone.utc)
     except (TypeError, ValueError, AttributeError) as e:
         logger.warning(
             "Failed to parse published date for entry: %s, "
@@ -360,11 +373,26 @@ def process_entry(
     content = entry.get("summary", "")
     published_str = entry.get("published", None)
     try:
-        published_dt = (
-            datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-            if published_str
-            else datetime.now(timezone.utc)
-        )
+        if published_str:
+            published_parsed = getattr(entry, "published_parsed", None)
+            if published_parsed:
+                if isinstance(published_parsed, datetime):
+                    published_dt = published_parsed
+                elif isinstance(published_parsed, tuple):
+                    if len(published_parsed) == 6:
+                        published_dt = datetime(
+                            *published_parsed, tzinfo=timezone.utc
+                        )
+                    elif len(published_parsed) > 6:
+                        published_dt = datetime(*published_parsed[:6])
+                    else:
+                        published_dt = datetime.now(timezone.utc)
+                else:
+                    published_dt = datetime.now(timezone.utc)
+            else:
+                published_dt = datetime.now(timezone.utc)
+        else:
+            published_dt = datetime.now(timezone.utc)
     except (TypeError, ValueError):
         published_dt = datetime.now(timezone.utc)
     doc = {
@@ -380,7 +408,10 @@ def process_entry(
     }
     if not upload_entry_to_search(doc, search_client, logger):
         return
-    ws.append(
+    if ws is None:
+        raise RuntimeError("Worksheet is None")
+    worksheet = get_worksheet(ws)
+    worksheet.append(  # type: ignore[union-attr]
         [
             doc["title"],
             summary,
@@ -429,6 +460,12 @@ def get_azure_clients_and_secrets():
     return client, model_name, search_client
 
 
+def get_worksheet(ws: Any) -> Worksheet:
+    if ws is None or not isinstance(ws, Worksheet):
+        raise RuntimeError("Worksheet is None or not a Worksheet instance")
+    return ws
+
+
 def main() -> None:
     """
     Main execution function for fetching, filtering, summarizing, and indexing
@@ -457,9 +494,11 @@ def main() -> None:
         wb.save(excel_file)
     logger.info(f"Excel output saved to: {os.path.abspath(excel_file)}")
     wb = load_workbook(excel_file)
-    ws = wb.active
+    worksheet = get_worksheet(wb.active)
     existing_urls = {
-        row[2] for row in ws.iter_rows(min_row=2, values_only=True) if row[2]
+        row[2]
+        for row in worksheet.iter_rows(min_row=2, values_only=True)
+        if row[2]
     }
     one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     for url in feeds:
@@ -467,7 +506,7 @@ def main() -> None:
             url,
             one_week_ago,
             existing_urls,
-            ws,
+            worksheet,
             keywords,
             client,
             model_name,

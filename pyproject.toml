@@ -29,6 +29,12 @@ flake8 = "*"
 isort = "*"
 coverage = "*"
 pytest = "*"
+mypy = "*"
+bandit = "*"
+
+[tool.mypy]
+ignore_missing_imports = true
+disable_error_code = ["union-attr"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

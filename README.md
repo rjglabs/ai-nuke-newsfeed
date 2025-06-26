@@ -49,6 +49,11 @@ This project uses the following tools to ensure code quality and consistency:
   isort nuclear_news_indexer.py
   ```
 - **zipp**: Pinned to `>=3.19.1` in both `requirements.txt` and `requirements-dev.txt` for security.
+- **Bandit**: Security static analysis for Python. Run:
+  ```sh
+  poetry run bandit -r nuclear_news_indexer.py --skip B101,B404,B603
+  ```
+  Bandit is also run automatically in CI (with some noisy checks skipped) to catch common security issues, but will not fail the build on warnings.
 
 > **Note:** Black's default line length is 88, which will cause conflicts with flake8's E501. Always use `--line-length 79` with Black for this project.
 
@@ -260,6 +265,23 @@ add this step to your GitHub Actions workflow before running tests to set a dumm
 ```
 
 This allows your tests to import the code without requiring a real Azure Key Vault during CI. For best practice, refactor your code so that Azure clients are only created when needed, not at import time.
+
+---
+
+## Type Checking and Mypy Configuration
+
+- **Mypy**: Static type checking is enforced in CI. The configuration in `pyproject.toml` disables the `union-attr` error code to work around known issues with openpyxl's type stubs. This ensures a clean type check while maintaining runtime safety.
+
+  - To run mypy locally:
+    ```sh
+    poetry run mypy nuclear_news_indexer.py
+    ```
+  - The relevant section in `pyproject.toml`:
+    ```toml
+    [tool.mypy]
+    ignore_missing_imports = true
+    disable_error_code = ["union-attr"]
+    ```
 
 ---
 

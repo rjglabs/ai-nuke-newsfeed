@@ -278,7 +278,10 @@ def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
         else:
             published_dt = datetime.now(timezone.utc)
         # Ensure published_dt is always timezone-aware (UTC)
-        if published_dt.tzinfo is None or published_dt.tzinfo.utcoffset(published_dt) is None:
+        if (
+            published_dt.tzinfo is None
+            or published_dt.tzinfo.utcoffset(published_dt) is None
+        ):
             published_dt = published_dt.replace(tzinfo=timezone.utc)
     except (TypeError, ValueError, AttributeError) as e:
         logger.warning(

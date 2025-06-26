@@ -170,8 +170,10 @@ All other secrets (OpenAI keys, endpoints, deployment names, and Azure Search cr
 
 1. Clone the repository and install requirements:
    ```sh
+   poetry install
+   # Or, if you need a requirements.txt for pip:
+   poetry export -f requirements.txt --output requirements.txt --without-hashes
    pip install -r requirements.txt
-   # or manually install: feedparser requests openpyxl python-dotenv azure-core azure-search-documents openai azure-identity azure-keyvault-secrets
    ```
 2. Create a `.env` file with your Key Vault URL:
    ```env
@@ -236,7 +238,8 @@ To measure and report code coverage (and integrate with SonarCloud):
 
 ## Development & Contribution
 
-- All dependencies are listed in `requirements.txt`.
+- All dependencies are managed in `pyproject.toml` via Poetry.
+- If you need a `requirements.txt` for legacy tools, export it using Poetry as described above.
 - Please ensure new code is covered by tests and passes static analysis.
 
 ---

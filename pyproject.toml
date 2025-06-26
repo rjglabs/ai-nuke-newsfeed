@@ -1,0 +1,32 @@
+[project]
+name = "ai-nuke-newsfeed"
+version = "0.1.0"
+description = "Automation tool for nuclear news aggregation, Azure OpenAI summarization, and Azure Cognitive Search indexing."
+authors = [
+    { name = "Rich Geiger", email = "geiger_richard@hotmail.com" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "feedparser",
+    "requests",
+    "openpyxl",
+    "python-dotenv",
+    "azure-core",
+    "azure-identity>=1.16.1",
+    "azure-keyvault-secrets",
+    "azure-search-documents",
+    "openai",
+    "zipp>=3.19.1",
+    "pyOpenSSL"
+]
+
+[tool.poetry.group.dev.dependencies]
+black = ">=24.3.0"
+flake8 = "*"
+isort = "*"
+coverage = "*"
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

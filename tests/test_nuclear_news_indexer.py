@@ -2,6 +2,15 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from nuclear_news_indexer import matches_keywords, is_entry_recent
 
+class MockEntry(dict):
+    def __getattr__(self, item):
+        try:
+            return self[item]
+        except KeyError:
+            raise AttributeError(item)
+    def get(self, key, default=None):
+        return super().get(key, default)
+
 class TestNuclearNewsIndexer(unittest.TestCase):
     def test_matches_keywords_true(self):
         text = "This article discusses nuclear fusion and reactors."
@@ -12,22 +21,22 @@ class TestNuclearNewsIndexer(unittest.TestCase):
         self.assertFalse(matches_keywords(text))
 
     def test_is_entry_recent_true(self):
-        entry = {
+        entry = MockEntry({
             "published": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z"),
             "published_parsed": datetime.now(timezone.utc).timetuple(),
             "title": "Recent Article"
-        }
+        })
         one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         # Should be recent
         self.assertTrue(is_entry_recent(entry, one_week_ago, logger=DummyLogger()))
 
     def test_is_entry_recent_false(self):
         old_date = datetime.now(timezone.utc) - timedelta(days=10)
-        entry = {
+        entry = MockEntry({
             "published": old_date.strftime("%a, %d %b %Y %H:%M:%S %z"),
             "published_parsed": old_date.timetuple(),
             "title": "Old Article"
-        }
+        })
         one_week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         # Should not be recent
         self.assertFalse(is_entry_recent(entry, one_week_ago, logger=DummyLogger()))

@@ -248,52 +248,29 @@ def process_feed(
 
 
 def is_entry_recent(entry, one_week_ago: datetime, logger) -> bool:
-    published_str = (
-        entry.get("published", None)
-        if isinstance(entry, dict)
-        else getattr(entry, "published", None)
-    )
+    """
+    Returns True if the entry is recent (published within the last week),
+    else False.
+    Logs and handles parsing errors gracefully.
+    """
     try:
-        if published_str:
-            if isinstance(entry, dict):
-                published_parsed = entry.get("published_parsed")
-            else:
-                published_parsed = getattr(entry, "published_parsed", None)
-            if published_parsed:
-                if isinstance(published_parsed, datetime):
-                    published_dt = published_parsed
-                elif isinstance(published_parsed, tuple):
-                    if len(published_parsed) == 6:
-                        published_dt = datetime(
-                            *published_parsed, tzinfo=timezone.utc
-                        )
-                    elif len(published_parsed) > 6:
-                        published_dt = datetime(*published_parsed[:6])
-                    else:
-                        published_dt = datetime.now(timezone.utc)
-                else:
-                    published_dt = datetime.now(timezone.utc)
-            else:
-                published_dt = datetime.now(timezone.utc)
-        else:
-            published_dt = datetime.now(timezone.utc)
-        # Ensure published_dt is always timezone-aware (UTC)
-        if (
-            published_dt.tzinfo is None
-            or published_dt.tzinfo.utcoffset(published_dt) is None
-        ):
-            published_dt = published_dt.replace(tzinfo=timezone.utc)
-    except (TypeError, ValueError, AttributeError) as e:
+        published_dt = extract_published_dt(entry)
+    except Exception as e:
+        title = getattr(entry, "title", entry.get("title", ""))
         logger.warning(
-            "Failed to parse published date for entry: %s, "
-            "error: %s" % (getattr(entry, "title", entry.get("title", "")), e)
+            "Failed to parse published date for entry: %s",
+            title,
+        )
+        logger.warning(
+            "error: %s",
+            e,
         )
         published_dt = datetime.now(timezone.utc)
     if published_dt < one_week_ago:
-        logger.info(
-            "Skipping old article: %s"
-            % getattr(entry, "title", entry.get("title", ""))
+        msg = "Skipping old article: %s" % getattr(
+            entry, "title", entry.get("title", "")
         )
+        logger.info(msg)
         return False
     return True
 
@@ -347,6 +324,40 @@ def upload_entry_to_search(doc: dict, search_client, logger) -> bool:
         return False
 
 
+def extract_published_dt(entry) -> datetime:
+    """
+    Extracts and returns a timezone-aware published datetime from an RSS entry.
+    Falls back to current UTC time if parsing fails.
+    """
+    published_str = entry.get("published", None)
+    if not published_str:
+        return datetime.now(timezone.utc)
+    published_parsed = getattr(entry, "published_parsed", None)
+    try:
+        if not published_parsed:
+            return datetime.now(timezone.utc)
+        if isinstance(published_parsed, datetime):
+            published_dt = published_parsed
+        elif isinstance(published_parsed, tuple):
+            if len(published_parsed) == 6:
+                published_dt = datetime(*published_parsed, tzinfo=timezone.utc)
+            elif len(published_parsed) > 6:
+                published_dt = datetime(*published_parsed[:6])
+            else:
+                published_dt = datetime.now(timezone.utc)
+        else:
+            published_dt = datetime.now(timezone.utc)
+        # Ensure timezone-aware (UTC)
+        if (
+            published_dt.tzinfo is None
+            or published_dt.tzinfo.utcoffset(published_dt) is None
+        ):
+            published_dt = published_dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        published_dt = datetime.now(timezone.utc)
+    return published_dt
+
+
 def process_entry(
     entry,
     feed,
@@ -374,30 +385,7 @@ def process_entry(
     if not summary:
         return
     content = entry.get("summary", "")
-    published_str = entry.get("published", None)
-    try:
-        if published_str:
-            published_parsed = getattr(entry, "published_parsed", None)
-            if published_parsed:
-                if isinstance(published_parsed, datetime):
-                    published_dt = published_parsed
-                elif isinstance(published_parsed, tuple):
-                    if len(published_parsed) == 6:
-                        published_dt = datetime(
-                            *published_parsed, tzinfo=timezone.utc
-                        )
-                    elif len(published_parsed) > 6:
-                        published_dt = datetime(*published_parsed[:6])
-                    else:
-                        published_dt = datetime.now(timezone.utc)
-                else:
-                    published_dt = datetime.now(timezone.utc)
-            else:
-                published_dt = datetime.now(timezone.utc)
-        else:
-            published_dt = datetime.now(timezone.utc)
-    except (TypeError, ValueError):
-        published_dt = datetime.now(timezone.utc)
+    published_dt = extract_published_dt(entry)
     doc = {
         "id": str(uuid.uuid4()),
         "title": entry.title,
@@ -414,7 +402,7 @@ def process_entry(
     if ws is None:
         raise RuntimeError("Worksheet is None")
     worksheet = get_worksheet(ws)
-    worksheet.append(  # type: ignore[union-attr]
+    worksheet.append(
         [
             doc["title"],
             summary,

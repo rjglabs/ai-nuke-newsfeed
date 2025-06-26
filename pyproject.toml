@@ -31,6 +31,7 @@ coverage = "*"
 pytest = "*"
 mypy = "*"
 bandit = "*"
+types-requests = "*"
 
 [tool.mypy]
 ignore_missing_imports = true
